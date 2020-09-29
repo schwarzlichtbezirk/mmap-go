@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func mmap(len int, inprot, inflags, fd uintptr, off int64) ([]byte, error) {
+func mmap(fd uintptr, off, len int64, inprot, inflags int) ([]byte, error) {
 	flags := unix.MAP_SHARED
 	prot := unix.PROT_READ
 	switch {
@@ -27,7 +27,7 @@ func mmap(len int, inprot, inflags, fd uintptr, off int64) ([]byte, error) {
 		flags |= unix.MAP_ANON
 	}
 
-	b, err := unix.Mmap(int(fd), off, len, prot, flags)
+	b, err := unix.Mmap(int(fd), off, int(len), prot, flags)
 	if err != nil {
 		return nil, err
 	}

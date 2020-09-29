@@ -122,7 +122,7 @@ func TestNonZeroOffset(t *testing.T) {
 	if err != nil {
 		panic(err.Error())
 	}
-	m, err := MapRegion(fileobj, pageSize, RDONLY, 0, 0)
+	m, err := MapRegion(fileobj, 0, pageSize, RDONLY, 0)
 	if err != nil {
 		t.Errorf("error mapping file: %s", err)
 	}
@@ -134,7 +134,7 @@ func TestNonZeroOffset(t *testing.T) {
 	if err != nil {
 		panic(err.Error())
 	}
-	m, err = MapRegion(fileobj, pageSize, RDONLY, 0, pageSize)
+	m, err = MapRegion(fileobj, pageSize, pageSize, RDONLY, 0)
 	if err != nil {
 		t.Errorf("error mapping file: %s", err)
 	}
@@ -143,7 +143,7 @@ func TestNonZeroOffset(t *testing.T) {
 		t.Error(err)
 	}
 
-	m, err = MapRegion(fileobj, pageSize, RDONLY, 0, 1)
+	m, err = MapRegion(fileobj, 1, pageSize, RDONLY, 0)
 	if err == nil {
 		t.Error("expect error because offset is not multiple of page size")
 	}

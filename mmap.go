@@ -40,41 +40,46 @@ const (
 	ANON = 1 << iota
 )
 
+var (
+	ErrOffSize = errors.New("offset parameter must be a multiple of the system's page size")
+	ErrAnonLen = errors.New("anonymous mapping requires non-zero length")
+)
+
 // MMap represents a file mapped into memory.
 type MMap []byte
 
 // Map maps an entire file into memory.
 // If ANON is set in flags, f is ignored.
 func Map(f *os.File, prot, flags int) (MMap, error) {
-	return MapRegion(f, -1, prot, flags, 0)
+	return MapRegion(f, 0, -1, prot, flags)
 }
 
 // MapRegion maps part of a file into memory.
 // The offset parameter must be a multiple of the system's page size.
 // If length < 0, the entire file will be mapped.
 // If ANON is set in flags, f is ignored.
-func MapRegion(f *os.File, length int, prot, flags int, offset int64) (MMap, error) {
+func MapRegion(f *os.File, offset, length int64, prot, flags int) (MMap, error) {
 	if offset%int64(os.Getpagesize()) != 0 {
-		return nil, errors.New("offset parameter must be a multiple of the system's page size")
+		return nil, ErrOffSize
 	}
 
 	var fd uintptr
 	if flags&ANON == 0 {
-		fd = uintptr(f.Fd())
+		fd = f.Fd()
 		if length < 0 {
 			fi, err := f.Stat()
 			if err != nil {
 				return nil, err
 			}
-			length = int(fi.Size())
+			length = fi.Size()
 		}
 	} else {
 		if length <= 0 {
-			return nil, errors.New("anonymous mapping requires non-zero length")
+			return nil, ErrAnonLen
 		}
 		fd = ^uintptr(0)
 	}
-	return mmap(length, uintptr(prot), uintptr(flags), fd, offset)
+	return mmap(fd, offset, length, prot, flags)
 }
 
 func (m *MMap) header() *reflect.SliceHeader {

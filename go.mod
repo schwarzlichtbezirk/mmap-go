@@ -1,3 +1,5 @@
-module github.com/edsrzf/mmap-go
+module github.com/schwarzlichtbezirk/mmap-go
 
-require golang.org/x/sys v0.0.0-20181221143128-b4a75ba826a6
+go 1.11
+
+require golang.org/x/sys v0.0.0-20200929083018-4d22bbb62b3c

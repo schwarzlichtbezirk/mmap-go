@@ -30,7 +30,11 @@ type addrinfo struct {
 var handleLock sync.Mutex
 var handleMap = map[uintptr]*addrinfo{}
 
-func mmap(len int, prot, flags, hfile uintptr, off int64) ([]byte, error) {
+var (
+	ErrOutAddr = errors.New("unknown base address")
+)
+
+func mmap(hfile uintptr, off, len int64, prot, flags int) ([]byte, error) {
 	flProtect := uint32(windows.PAGE_READONLY)
 	dwDesiredAccess := uint32(windows.FILE_MAP_READ)
 	writable := false
@@ -53,8 +57,8 @@ func mmap(len int, prot, flags, hfile uintptr, off int64) ([]byte, error) {
 	// that we wish to allow to be mappable. It is the sum of
 	// the length the user requested, plus the offset where that length
 	// is starting from. This does not map the data into memory.
-	maxSizeHigh := uint32((off + int64(len)) >> 32)
-	maxSizeLow := uint32((off + int64(len)) & 0xFFFFFFFF)
+	maxSizeHigh := uint32((off + len) >> 32)
+	maxSizeLow := uint32((off + len) & 0xFFFFFFFF)
 	// TODO: Do we need to set some security attributes? It might help portability.
 	h, errno := windows.CreateFileMapping(windows.Handle(hfile), nil, flProtect, maxSizeHigh, maxSizeLow, nil)
 	if h == 0 {
@@ -80,7 +84,7 @@ func mmap(len int, prot, flags, hfile uintptr, off int64) ([]byte, error) {
 	m := MMap{}
 	dh := m.header()
 	dh.Data = addr
-	dh.Len = len
+	dh.Len = int(len)
 	dh.Cap = dh.Len
 
 	return m, nil
@@ -98,7 +102,7 @@ func (m MMap) flush() error {
 	handle, ok := handleMap[addr]
 	if !ok {
 		// should be impossible; we would've errored above
-		return errors.New("unknown base address")
+		return ErrOutAddr
 	}
 
 	if handle.writable {
@@ -123,8 +127,7 @@ func (m MMap) unlock() error {
 }
 
 func (m MMap) unmap() error {
-	err := m.flush()
-	if err != nil {
+	if err := m.flush(); err != nil {
 		return err
 	}
 
@@ -136,15 +139,14 @@ func (m MMap) unmap() error {
 	// we're trying to remove our old addr/handle pair.
 	handleLock.Lock()
 	defer handleLock.Unlock()
-	err = windows.UnmapViewOfFile(addr)
-	if err != nil {
+	if err := windows.UnmapViewOfFile(addr); err != nil {
 		return err
 	}
 
 	handle, ok := handleMap[addr]
 	if !ok {
 		// should be impossible; we would've errored above
-		return errors.New("unknown base address")
+		return ErrOutAddr
 	}
 	delete(handleMap, addr)
 
